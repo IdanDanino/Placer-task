@@ -2,15 +2,16 @@
 import {
   Autocomplete,
   Button,
-  Input,
+  Dialog,
   Paper,
   TextField,
   styled,
 } from "@mui/material";
-import axios from "axios";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useAccessToken from "../hooks/useAcessToken";
 import { StateType } from "../types";
+import getCities from "../utils/getCities";
+import getStates from "../utils/getStates";
 import BaseInfo from "./BaseInfo";
 
 const _Paper = styled(Paper)`
@@ -24,50 +25,26 @@ const _Paper = styled(Paper)`
   }
 `;
 
+const DialogRoot = styled("div")`
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  padding: 25px;
+`;
+
 const Form = () => {
   const [state, setState] = useState<Partial<StateType>>({});
   const [USAStates, setUSAStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const token = useAccessToken();
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("https://www.universal-tutorial.com/api/states/United States", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      })
-      .then((res) =>
-        setUSAStates(
-          res.data.map(({ state_name }: { state_name: string }) => state_name)
-        )
-      )
-      .catch((e) => console.error(e));
+    getStates(token).then((data) => setUSAStates(data));
   }, [token]);
-
-  const getCities = useCallback(() => {
-    axios
-      .get(`https://www.universal-tutorial.com/api/cities/${state.state}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      })
-      .then((res) =>
-        setCities(
-          res.data.map(({ city_name }: { city_name: string }) => city_name)
-        )
-      )
-      .catch((e) => console.error(e));
-  }, [state.state, token]);
 
   const onChange = (fieldName: keyof StateType, value: string) => {
     setState((prevState) => ({ ...prevState, [fieldName]: value }));
-  };
-
-  const onSubmit = () => {
-    console.log("submit");
   };
 
   return (
@@ -76,9 +53,9 @@ const Form = () => {
       <Autocomplete
         options={USAStates}
         renderInput={(params) => <TextField {...params} label="USA STATES" />}
-        onChange={(e, newVal) => {
+        onChange={async (e, newVal) => {
           onChange("state", newVal || "");
-          getCities();
+          await getCities(token, newVal || "").then((data) => setCities(data));
         }}
       />
       <Autocomplete
@@ -91,9 +68,12 @@ const Form = () => {
         }}
       />
 
-      <Button name="submit" onClick={onSubmit}>
+      <Button name="submit" onClick={() => setIsSubmitted(true)}>
         Submit
       </Button>
+      <Dialog open={isSubmitted} onClose={() => setIsSubmitted(false)}>
+        <DialogRoot> your registration has been sent </DialogRoot>
+      </Dialog>
     </_Paper>
   );
 };
